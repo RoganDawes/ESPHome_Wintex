@@ -7,17 +7,21 @@
 namespace esphome {
 namespace wintex {
 
-class WintexBinarySensor : public binary_sensor::BinarySensor, public Component {
+class WintexBinarySensor : public WintexSensorBase, public binary_sensor::BinarySensor, public Component {
  public:
+  virtual ~WintexBinarySensor() {}
   void setup() override;
   void dump_config() override;
-  void set_sensor_id(uint8_t sensor_id) { this->sensor_id_ = sensor_id; }
-
+  void set_wintex_binary_sensor(uint32_t address, uint8_t length, uint8_t offset, uint8_t mask) { 
+    set_wintex_address(address, length, offset);
+    this->mask_ = mask;
+  }
+  virtual void update_wintex(const uint8_t *memory) override;
   void set_wintex_parent(Wintex *parent) { this->parent_ = parent; }
 
  protected:
   Wintex *parent_;
-  uint8_t sensor_id_{0};
+  uint8_t mask_{0};
 };
 
 }  // namespace wintex

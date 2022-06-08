@@ -18,7 +18,11 @@
 
 #include "esphome/core/log.h"
 #include "esphome/core/util.h"
-#include "esphome/core/helpers.h"
+
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2021, 10, 0)
+#include "esphome/components/network/util.h"
+#endif
+
 
 static const char *TAG = "streamserver";
 
@@ -41,19 +45,12 @@ void StreamServerComponent::setup() {
         }
         this->clients_.push_back(std::unique_ptr<Client>(new Client(tcpClient, this->recv_buf_)));
     }, this);
-    // See https://esphome.io/custom/custom_component.html#native-api-custom-component
-    // Register native API calls that would allow for things like
-    // zone activations, alarm zone violations, and enabling/disabling the alarm.
 }
 
 void StreamServerComponent::loop() {
     this->cleanup();
-//    if (this->clients_.size()) {
-        this->read();
-        this->write();
-//    } else {
-//        this->texecom_loop();
-//    }
+    this->read();
+    this->write();
 }
 
 void StreamServerComponent::cleanup() {
@@ -97,17 +94,31 @@ void StreamServerComponent::read() {
     int len;
     while ((len = this->stream_->available()) > 0) {
         char buf[128];
-        size_t read = this->stream_->readBytes(buf, min(len, 128));
-        for (int i = 0; i < read; i += 0x10) {
-          int l = std::min(static_cast<int>(read)-i, 0x10);
+        len = std::min(len, 128);
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2021, 10, 0)
+        this->stream_->read_array(reinterpret_cast<uint8_t*>(buf), len);
+#else
+        this->stream_->readBytes(buf, len);
+#endif
+        for (int i = 0; i < len; i += 0x10) {
+          int l = std::min(static_cast<int>(len)-i, 0x10);
           ESP_LOGD(TAG, "(%d) Read : %s", this->port_, this->hexencode((uint8_t *)buf, i, l).c_str());
         }
         for (auto const& client : this->clients_)
-            client->tcp_client->write(buf, read);
+            client->tcp_client->write(buf, len);
     }
 }
 
 void StreamServerComponent::write() {
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2021, 10, 0)
+    this->stream_->write_array(this->recv_buf_);
+    size_t len = this->recv_buf_.size();
+    for (int i = 0; i < len; i += 0x10) {
+        int l = std::min(static_cast<int>(len)-i, 0x10);
+        ESP_LOGD(TAG, "(%d) Write: %s", this->port_, this->hexencode((uint8_t *)this->recv_buf_.data(), i, l).c_str());
+    }
+    this->recv_buf_.clear();
+#else
     size_t len;
     while ((len = this->recv_buf_.size()) > 0) {
         this->stream_->write(this->recv_buf_.data(), len);
@@ -117,11 +128,18 @@ void StreamServerComponent::write() {
         }
         this->recv_buf_.erase(this->recv_buf_.begin(), this->recv_buf_.begin() + len);
     }
+#endif
 }
 
 void StreamServerComponent::dump_config() {
     ESP_LOGCONFIG(TAG, "Stream Server:");
-    ESP_LOGCONFIG(TAG, "  Address: %s:%u", network_get_address().c_str(), this->port_);
+    ESP_LOGCONFIG(TAG, "  Address: %s:%u",
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2021, 10, 0)
+                  esphome::network::get_ip_address().str().c_str(),
+#else
+                  network_get_address().c_str(),
+#endif
+                  this->port_);
 }
 
 void StreamServerComponent::on_shutdown() {

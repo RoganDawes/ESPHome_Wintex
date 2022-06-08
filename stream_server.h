@@ -1,4 +1,4 @@
-/* Copyright (C) 2020 Oxan van Leeuwen
+/* Copyright (C) 2020-2021 Oxan van Leeuwen
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,14 @@
 
 #pragma once
 
+#include "esphome/core/version.h"
 #include "esphome/core/component.h"
+#include "esphome/components/uart/uart.h"
+
+// Provide VERSION_CODE for ESPHome versions lacking it, as existence checking doesn't work for function-like macros
+#ifndef VERSION_CODE
+#define VERSION_CODE(major, minor, patch) ((major) << 16 | (minor) << 8 | (patch))
+#endif
 
 #include <memory>
 #include <string>
@@ -26,12 +33,21 @@
 #ifdef ARDUINO_ARCH_ESP8266
 #include <ESPAsyncTCP.h>
 #else
+// AsyncTCP.h includes parts of freertos, which require FreeRTOS.h header to be included first
+#include <freertos/FreeRTOS.h>
 #include <AsyncTCP.h>
+#endif
+
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2021, 10, 0)
+using SSStream = esphome::uart::UARTComponent;
+#else
+using SSStream = Stream;
 #endif
 
 class StreamServerComponent : public esphome::Component {
 public:
-    explicit StreamServerComponent(Stream *stream, uint16_t port) : stream_{stream}, port_{port} {}
+    explicit StreamServerComponent(SSStream *stream) : stream_{stream} {}
+    void set_uart_parent(esphome::uart::UARTComponent *parent) { this->stream_ = parent; }
 
     void setup() override;
     void loop() override;
@@ -40,7 +56,7 @@ public:
 
     float get_setup_priority() const override { return esphome::setup_priority::AFTER_WIFI; }
 
-//    void set_port(uint16_t port) { this->port_ = port; }
+    void set_port(uint16_t port) { this->port_ = port; }
 
 protected:
     void cleanup();
@@ -57,9 +73,9 @@ protected:
         bool disconnected{false};
     };
 
-    Stream *stream_{nullptr};
+    SSStream *stream_{nullptr};
     AsyncServer server_{0};
-    uint16_t port_;
+    uint16_t port_{6638};
     std::vector<uint8_t> recv_buf_{};
     std::vector<std::unique_ptr<Client>> clients_{};
 };
