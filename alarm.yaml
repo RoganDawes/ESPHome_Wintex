@@ -22,7 +22,7 @@ captive_portal:
 # Enable logging
 logger:
   #  uart_id: uart0
-# level: VERBOSE
+ level: DEBUG
 #  baud_rate: 0
 
 # Enable Home Assistant API
@@ -104,172 +104,185 @@ custom_component:
 wintex:
   uart_id: uart2
   udl: !secret udl
+  zones:
+     - zone: 1
+       name: "01 Front Door"
+       device_class: door
+     - zone: 2
+       name: "02 Dining room"
+       device_class: motion
+     - zone: 17
+       name: "17 Kitchen/Office"
+       device_class: door
+     - zone: 18
+       name: "18 Office"
+       device_class: motion
 
-binary_sensor:
-  - platform: "wintex"
-    id: alarm_zone_01
-    name: "01 Front door"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x00
-    read_mask: 0x01
-    device_class: door
-  - platform: "wintex"
-    id: alarm_zone_02
-    name: "02 Dining room"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x01
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_03
-    name: "03 Lounge"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x02
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_04
-    name: "04 Unused"
-    internal: true
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x03
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_05
-    name: "05 Nick's room"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x04
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_06
-    name: "06 Kitchen"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x05
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_07
-    name: "07 Garage"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x06
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_08
-    name: "08 Travis' room"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x07
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_09
-    name: "09 Connor's room"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x08
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_10
-    name: "10 Main bedroom"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x09
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_11
-    name: "11 Glassbreak"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x0a
-    read_mask: 0x01
-  - platform: "wintex"
-    id: alarm_zone_12
-    name: "12 Outside Patio"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x0b
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_13
-    name: "13 Outside Pool"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x0c
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_14
-    name: "14 Outside Kitchen"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x0d
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_15
-    name: "15 Outside Garage"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x0e
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_16
-    name: "16 Panics"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x0f
-    read_mask: 0x01
-  - platform: "wintex"
-    id: alarm_zone_17
-    name: "17 Office/Kit door"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x10
-    read_mask: 0x01
-    device_class: door
-  - platform: "wintex"
-    id: alarm_zone_18
-    name: "18 Office"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x11
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_19
-    name: "19 Storeroom"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x12
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_20
-    name: "20 Outside flat"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x13
-    read_mask: 0x01
-    device_class: motion
-  - platform: "wintex"
-    id: alarm_zone_21
-    name: "21 Patio door"
-    read_address: 0x4f8
-    read_length: 0x20
-    read_offset: 0x14
-    read_mask: 0x01
-    device_class: door
+#binary_sensor:
+#   - platform: "wintex"
+#     id: alarm_zone_01
+#     name: "01 Front door"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x00
+#     read_mask: 0x01
+#     device_class: door
+#   - platform: "wintex"
+#     id: alarm_zone_02
+#     name: "02 Dining room"
+#     device_class: motion
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x01
+#     read_mask: 0x01
+#   - platform: "wintex"
+#     id: alarm_zone_03
+#     name: "03 Lounge"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x02
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_04
+#     name: "04 Unused"
+#     internal: true
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x03
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_05
+#     name: "05 Nick's room"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x04
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_06
+#     name: "06 Kitchen"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x05
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_07
+#     name: "07 Garage"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x06
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_08
+#     name: "08 Travis' room"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x07
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_09
+#     name: "09 Connor's room"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x08
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_10
+#     name: "10 Main bedroom"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x09
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_11
+#     name: "11 Glassbreak"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x0a
+#     read_mask: 0x01
+#   - platform: "wintex"
+#     id: alarm_zone_12
+#     name: "12 Outside Patio"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x0b
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_13
+#     name: "13 Outside Pool"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x0c
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_14
+#     name: "14 Outside Kitchen"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x0d
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_15
+#     name: "15 Outside Garage"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x0e
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_16
+#     name: "16 Panics"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x0f
+#     read_mask: 0x01
+#   - platform: "wintex"
+#     id: alarm_zone_17
+#     name: "17 Office/Kit door"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x10
+#     read_mask: 0x01
+#     device_class: door
+#   - platform: "wintex"
+#     id: alarm_zone_18
+#     name: "18 Office"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x11
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_19
+#     name: "19 Storeroom"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x12
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_20
+#     name: "20 Outside flat"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x13
+#     read_mask: 0x01
+#     device_class: motion
+#   - platform: "wintex"
+#     id: alarm_zone_21
+#     name: "21 Patio door"
+#     read_address: 0x4f8
+#     read_length: 0x20
+#     read_offset: 0x14
+#     read_mask: 0x01
+#     device_class: door
