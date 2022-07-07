@@ -16,17 +16,19 @@ namespace esphome {
 namespace wintex {
 
 enum class WintexCommandType : uint8_t {
-  SESSION = 'Z',
+  COMMIT = 'U',
+  HANGUP = 'H',
   READ_CONFIGURATION = 'O',
   READ_VOLATILE = 'R',
+  SESSION = 'Z',
   WRITE_VOLATILE = 'W',
-  HANGUP = 'H',
 };
 
 enum class WintexResponseType : uint8_t {
   SESSION = 'Z',
   READ_CONFIGURATION = 'I',
   READ_VOLATILE = 'W',
+  ACK = 0x06,
   HANGUP = 0x0F,
 };
 
@@ -40,9 +42,26 @@ enum class WintexInitState : uint8_t {
   MESSAGE_SENT,
 };
 
+struct WintexResponse {
+  WintexResponseType type;
+  size_t len;
+  const uint8_t *data;
+};
+
+class WintexResponseHandler {
+  public:
+    void handle_response(WintexResponse response);
+};
+
 struct WintexCommand {
   WintexCommandType cmd;
   std::vector<uint8_t> payload;
+};
+
+struct AsyncWintexCommand {
+  WintexCommandType cmd;
+  std::vector<uint8_t> payload;
+  std::function<optional<AsyncWintexCommand>(WintexResponse)> callback;
 };
 
 enum class WintexBinarySensorType {
@@ -87,48 +106,40 @@ class Wintex;
 class WintexSensorBase {
   friend class Wintex;
   public:
-    WintexSensorBase(Wintex *wintex, uint32_t address, uint8_t length, uint8_t offset) {
-      wintex_ = wintex;
+    WintexSensorBase(uint32_t address, uint8_t length, uint8_t offset) {
       address_ = address;
       length_ = length;
       offset_ = offset;
     }
     uint32_t get_address() { return this->address_; }
     uint8_t get_length() { return this->length_; }
-    uint8_t get_offset() { return this->offset_; }
 
   protected:
-    virtual void update_state(const uint8_t *memory);
-  Wintex *wintex_;
-  uint32_t address_{0};
-  uint8_t length_{0};
-  uint8_t offset_{0};
+    virtual void update_state(const uint8_t *memory) = 0;
+    uint32_t address_{0};
+    uint8_t length_{0};
+    uint8_t offset_{0};
 };
 
 class WintexBinarySensor : public WintexSensorBase, public binary_sensor::BinarySensor {
  public:
-  WintexBinarySensor(Wintex *wintex, uint32_t address, uint8_t length, uint8_t offset, uint8_t mask) 
-    : WintexSensorBase(wintex, address, length, offset) {
+  WintexBinarySensor(uint32_t address, uint8_t length, uint8_t offset, uint8_t mask) 
+    : WintexSensorBase(address, length, offset) {
     mask_ = mask;
   }
-  void setup() {};
-  void dump_config() {};
 
  protected:
-  void update_state(const uint8_t *memory) {
+  void update_state(const uint8_t *memory) override {
     this->publish_state(memory[offset_] & mask_);
   };
   uint8_t mask_;
 };
 
-#ifdef FOOBAR
 class WintexSensor : public WintexSensorBase, public sensor::Sensor {
  public:
-  WintexSensor(Wintex *wintex, uint32_t address, uint8_t length, uint8_t offset) 
-    : WintexSensorBase(wintex, address, length, offset) {
+  WintexSensor(uint32_t address, uint8_t length, uint8_t offset) 
+    : WintexSensorBase(address, length, offset) {
   }
-  void setup() {};
-  void dump_config() {};
 
  protected:
   void update_state(const uint8_t *memory) {
@@ -136,51 +147,39 @@ class WintexSensor : public WintexSensorBase, public sensor::Sensor {
   };
 };
 
-class WintexSwitch : public WintexSensorBase, public switch_::Switch {
+class WintexSwitch : public WintexSensorBase, public WintexResponseHandler, public switch_::Switch {
   public:
-    WintexSwitch(Wintex *wintex, uint32_t address, uint8_t length, uint8_t offset, uint8_t mask, WintexCommand on_command, WintexCommand off_command) 
-      : WintexSensorBase(wintex, address, length, offset) {
+    WintexSwitch(Wintex *wintex, uint32_t address, uint8_t length, uint8_t offset, uint8_t mask) 
+      : WintexSensorBase(address, length, offset) {
+        this->wintex_ = wintex;
         this->mask_ = mask;
-        this->on_command_ = on_command;
-        this->off_command_ = off_command;
     }
-    void setup() {};
-    void dump_config() {};
-    void turn_on();
-    void turn_off();
-    void toggle() {
-      if (this->state) {
-        this->turn_off();
-      } else {
-        this->turn_on();
-      }
-    };
-
-    /**
-     * @brief creates a command that can be passed to set_switch_commands to bypass a particular
-     * zone.
-     * 
-     * @param base_address The address of the start of the zone state range.
-     * @param zone a 1-based zone number
-     * @param state bypass on (true) or off (false)
-     * @return WintexCommand 
-     */
-    static WintexCommand bypassZoneCommand(uint32_t base_address, uint8_t zone, bool state) {
-      uint32_t address = base_address + zone - 1;
-      uint8_t a0 = (address >> 16) & 0xff;
-      uint8_t a1 = (address >> 8) & 0xff;
-      uint8_t a2 = (address) & 0xff;
-      return WintexCommand{.cmd = WintexCommandType::WRITE_VOLATILE, .payload = std::vector<uint8_t>{a0, a1, a2, 0x01, (state ? (char) 0xa0 : (char) 0x00)}};
-    }
+    virtual void write_state(bool state) = 0;
 
   protected:
+    Wintex *wintex_;
     uint8_t mask_;
-    WintexCommand on_command_, off_command_;
-    void update_state(const uint8_t *memory) {
+    void update_state(const uint8_t *memory) override {
       this->publish_state(memory[offset_] & mask_);
     };
+    virtual optional<AsyncWintexCommand> handle_response(WintexResponse response) = 0;
+    std::function<optional<AsyncWintexCommand>(WintexResponse)> callback_ = [this](WintexResponse response) {
+      return this->handle_response(response);
+    };
 };
-#endif
+
+class WintexZoneBypassSwitch: public WintexSwitch {
+  friend class Wintex;
+  public:
+    WintexZoneBypassSwitch(Wintex *wintex, uint32_t address, uint8_t length, uint8_t offset) 
+    : WintexSwitch (wintex, address, length, offset, 0x20) {}
+    void write_state(bool state) override;
+
+  protected:
+    optional<AsyncWintexCommand> handle_response(WintexResponse response) override;
+  private:
+    bool commit_{false};
+};
 
 /**
  * @brief WintexZone represents an entire zone, with a number of binary_sensors
@@ -197,15 +196,17 @@ class WintexZone : public binary_sensor::BinarySensor {
   // as well as the zone names, from the panel
   // Can be overridden by YAML configuration.
   void setup(Wintex *wintex, uint32_t zone_base_address, uint16_t zone_group_size, std::string zone_name);
-  WintexBinarySensor *status, *tamper, *test, *alarmed, *bypassed, *auto_bypassed;
+  WintexBinarySensor *status, *tamper, *test, *alarmed,*auto_bypassed;
+  WintexSwitch *bypass;
 
   private:
     uint16_t zone_;
+    bool setup_{false};
 };
 
-class Wintex : public Component, public uart::UARTDevice {
+class Wintex : protected WintexResponseHandler, public Component, public uart::UARTDevice {
   friend class WintexZone;
-  friend class WintexSwitch;
+  friend class WintexZoneBypassSwitch;
  public:
   float get_setup_priority() const override { return setup_priority::LATE; }
   void setup() override;
@@ -215,31 +216,35 @@ class Wintex : public Component, public uart::UARTDevice {
   void register_zone(WintexZone *zone);
 
  protected:
-  void send_command_(WintexCommand command);
+  void queue_command_(AsyncWintexCommand command);
   void register_sensor(WintexSensorBase *sensor);
 
  private:
   void handle_char_(uint8_t c);
-  bool validate_message_();
+  bool command_queue_is_locked_();
+  void send_command_now_(AsyncWintexCommand command);
+  optional<WintexResponse> parse_response_();
   void setup_zones_();
+  void update_sensors_();
 
-  void handle_command_(WintexResponseType command, const uint8_t *buffer, size_t len);
-  void send_raw_command_(WintexCommand command);
+  optional<AsyncWintexCommand> handle_login_(WintexResponse response);
+  optional<AsyncWintexCommand> handle_heartbeat_(WintexResponse response);
+  optional<AsyncWintexCommand> handle_sensors_(WintexResponse response);
+
   void process_command_queue_();
-  void send_empty_command_(WintexCommandType command);
-  WintexCommand volatile_read(uint32_t address, uint8_t length);
-
-  void update_sensors_(uint32_t address, uint8_t length, const uint8_t *data);
 
   WintexInitState init_state_ = WintexInitState::UNAUTH;
   uint32_t last_command_timestamp_{0};
   std::string product_ = "";
   std::string udl_ = "";
+  AsyncWintexCommand login_;
   std::vector<WintexSensorBase*> sensors_;
   std::vector<WintexZone *> zones_;
   std::vector<uint8_t> rx_message_;
-  std::vector<WintexCommand> command_queue_;
+  std::vector<AsyncWintexCommand> command_queue_;
   uint16_t current_sensor_{0};
+  optional<AsyncWintexCommand> current_command_;
+  optional<WintexResponse> sensor_response_;
 };
 
 }  // namespace wintex
